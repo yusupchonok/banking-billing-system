@@ -3,170 +3,277 @@ title Banking Billing System
 
 |Система денежных переводов|
 start
-:Опубликовать событие TRANSFER_COMPLETED
-в Kafka topic transfer.completed;
+:Получить запрос
+на денежный перевод;
+:POST /api/v1/billing-operations
+Передать параметры операции
+и Idempotency-Key;
 
 |Banking Billing System|
-:Считать событие из
-transfer.completed;
 :Проверить корректность
 входных данных;
 
 if (Данные корректны?) then (Нет)
-  :Сохранить статус INVALID_DATA
-  в таблицу billing_event;
-  :Опубликовать результат
-  в Kafka topic billing.result;
+  :Вернуть HTTP 400;
   |Система денежных переводов|
-  :Получить результат INVALID_DATA;
-  end
-else (Да)
-endif
-
-|Banking Billing System|
-:Проверить eventId
-в таблице billing_event;
-
-if (Событие уже обработано?) then (Да)
-  :Получить ранее сохранённый результат
-  из таблицы billing_event;
-  :Опубликовать результат
-  в Kafka topic billing.result;
-  |Система денежных переводов|
-  :Получить предыдущий результат;
+  :Отклонить запрос;
   stop
-else (Нет)
-endif
-
-fork
-  |Banking Billing System|
-  repeat
-    :GET /api/v1/tariffs
-    Получение применимого тарифа
-    на дату операции;
-    |Сервис тарифов|
-    :Найти тариф
-    по параметрам операции;
-    :Вернуть HTTP-ответ;
-    |Banking Billing System|
-  repeat while (HTTP 5xx / timeout
-  AND Retry count < 3?) is (Да)
-  ->Нет;
-
-  if (HTTP 200?) then (Да)
-    :Получить параметры тарифа;
-  elseif (HTTP 404?) then (Да)
-    :Результат TARIFF_NOT_FOUND;
-  else (HTTP 5xx / timeout)
-    :Результат TECHNICAL_ERROR;
-  endif
-
-fork again
-  |Banking Billing System|
-  repeat
-    :GET /api/v1/clients/{clientId}/billing-context
-    Получение скидок и лимитов клиента;
-    |Сервис клиентских данных|
-    :Сформировать клиентский
-    биллинговый контекст;
-    :Вернуть HTTP-ответ;
-    |Banking Billing System|
-  repeat while (HTTP 5xx / timeout
-  AND Retry count < 3?) is (Да)
-  ->Нет;
-
-  if (HTTP 200?) then (Да)
-    :Получить скидки и лимиты;
-  elseif (HTTP 404?) then (Да)
-    :Расчёт без
-    персональных условий;
-  else (HTTP 5xx / timeout)
-    :Результат TECHNICAL_ERROR;
-  endif
-end fork
-
-|Banking Billing System|
-if (Получен TECHNICAL_ERROR?) then (Да)
-  :Сохранить статус TECHNICAL_ERROR
-  в таблицу billing_event;
-  :Опубликовать результат
-  в Kafka topic billing.result;
-  |Система денежных переводов|
-  :Получить ошибку обработки;
-  end
-else (Нет)
-endif
-
-|Banking Billing System|
-if (Получен TARIFF_NOT_FOUND?) then (Да)
-  :Сохранить статус TARIFF_NOT_FOUND
-  в таблицу billing_event;
-  :Опубликовать результат
-  в Kafka topic billing.result;
-  |Система денежных переводов|
-  :Получить результат TARIFF_NOT_FOUND;
-  end
-else (Нет)
-endif
-
-|Banking Billing System|
-:Рассчитать комиссию;
-:Применить скидки, лимиты
-и правила округления;
-
-if (Расчёт выполнен?) then (Нет)
-  :Сохранить статус CALCULATION_ERROR
-  в таблицу billing_event;
-  :Опубликовать результат
-  в Kafka topic billing.result;
-  |Система денежных переводов|
-  :Получить ошибку расчёта;
-  end
 else (Да)
 endif
 
 |Banking Billing System|
-:Сохранить начисление
-в таблицу billing_charge;
+:Проверить Idempotency-Key
+и хэш запроса
+в таблице billing_operation;
 
-if (Сумма комиссии = 0?) then (Да)
-  :Установить статус NO_CHARGE;
-else (Нет)
-  repeat
-    :POST /api/v1/debits
-    Создание запроса
-    на списание комиссии;
-    |АБС|
-    :Проверить счёт
-    и выполнить списание;
-    :Вернуть HTTP-ответ
-    и businessCode;
-    |Banking Billing System|
-  repeat while (HTTP 5xx / timeout
-  AND Retry count < 3?) is (Да)
-  ->Нет;
-
-  if (HTTP 200?) then (Да)
-    :Статус PAID;
-  elseif (HTTP 422
-  INSUFFICIENT_FUNDS?) then (Да)
-    :Статус PAYMENT_PENDING;
-  elseif (HTTP 422
-  ACCOUNT_BLOCKED / ACCOUNT_CLOSED?) then (Да)
-    :Статус PAYMENT_REJECTED;
-  else (HTTP 5xx / timeout)
-    :Статус PAYMENT_ERROR;
+if (Idempotency-Key уже существует?) then (Да)
+  if (Тело запроса совпадает?) then (Да)
+    :Получить ранее сохранённый
+    результат;
+    :Вернуть HTTP 200
+    с сохранённым результатом;
+  else (Нет)
+    :Вернуть HTTP 409 Conflict;
+    |Система денежных переводов|
+    :Не выполнять повторный запрос;
+    stop
   endif
-endif
+else (Нет)
+  :Создать operationId;
+  :Сохранить параметры запроса
+  и Idempotency-Key
+  в таблицу billing_operation;
 
-|Banking Billing System|
-:Сохранить итоговый статус
-в таблицу billing_charge;
-:Опубликовать результат
-в Kafka topic billing.result;
+  fork
+    repeat
+      :GET /api/v1/tariffs
+      Получение применимого тарифа
+      на дату операции;
+      |Сервис тарифов|
+      :Найти тариф
+      по параметрам операции;
+      :Вернуть HTTP-ответ;
+      |Banking Billing System|
+    repeat while (HTTP 5xx / timeout
+    AND Retry count < 3?) is (Да)
+    ->Нет;
+
+    if (HTTP 200?) then (Да)
+      :Получить параметры тарифа;
+    elseif (HTTP 404?) then (Да)
+      :Результат TARIFF_NOT_FOUND;
+    else (HTTP 5xx / timeout)
+      :Результат TECHNICAL_ERROR;
+    endif
+
+  fork again
+    |Banking Billing System|
+    repeat
+      :GET /api/v1/clients/{clientId}/billing-context
+      Получение скидок и лимитов клиента;
+      |Сервис клиентских данных|
+      :Сформировать клиентский
+      биллинговый контекст;
+      :Вернуть HTTP-ответ;
+      |Banking Billing System|
+    repeat while (HTTP 5xx / timeout
+    AND Retry count < 3?) is (Да)
+    ->Нет;
+
+    if (HTTP 200?) then (Да)
+      :Получить скидки и лимиты;
+    elseif (HTTP 404?) then (Да)
+      :Расчёт без
+      персональных условий;
+    else (HTTP 5xx / timeout)
+      :Результат TECHNICAL_ERROR;
+    endif
+  end fork
+
+  |Banking Billing System|
+  if (Получен TECHNICAL_ERROR?) then (Да)
+    :Сохранить статус ERROR
+    в таблице billing_operation;
+    :Вернуть HTTP 503 / 504;
+    |Система денежных переводов|
+    :Не продолжать перевод;
+    stop
+  else (Нет)
+  endif
+
+  |Banking Billing System|
+  if (Получен TARIFF_NOT_FOUND?) then (Да)
+    :Сохранить статус REJECTED
+    и причину TARIFF_NOT_FOUND;
+    :Вернуть HTTP 422;
+    |Система денежных переводов|
+    :Не продолжать перевод;
+    stop
+  else (Нет)
+  endif
+
+  |Banking Billing System|
+  :Рассчитать комиссию;
+  :Применить скидки, лимиты
+  и правила округления;
+
+  if (Расчёт выполнен?) then (Нет)
+    :Сохранить статус ERROR
+    и CALCULATION_ERROR;
+    :Вернуть HTTP 500;
+    |Система денежных переводов|
+    :Не продолжать перевод;
+    stop
+  else (Да)
+  endif
+
+  |Banking Billing System|
+  :Сохранить начисление
+  в таблицу billing_charge;
+
+  if (Сумма комиссии = 0?) then (Да)
+    :Установить chargeStatus NO_CHARGE;
+    :Установить billingDecision APPROVED;
+    :Установить статус CALCULATED;
+  else (Нет)
+    repeat
+      :POST /api/v1/debit-authorizations
+      Проверка возможности списания
+      и резервирование комиссии;
+      |АБС|
+      :Проверить состояние счёта
+      и доступность средств;
+      :Вернуть HTTP-ответ
+      и businessCode;
+      |Banking Billing System|
+    repeat while (HTTP 5xx / timeout
+    AND Retry count < 3?) is (Да)
+    ->Нет;
+
+    if (HTTP 200
+    APPROVED?) then (Да)
+      :Установить chargeStatus RESERVED;
+      :Установить billingDecision APPROVED;
+      :Установить статус CALCULATED;
+    elseif (HTTP 422
+    INSUFFICIENT_FUNDS?) then (Да)
+      :Установить chargeStatus NOT_CHARGED;
+      :Установить billingDecision REJECTED;
+      :Установить статус REJECTED;
+    elseif (HTTP 422
+    ACCOUNT_BLOCKED / ACCOUNT_CLOSED?) then (Да)
+      :Установить chargeStatus NOT_CHARGED;
+      :Установить billingDecision REJECTED;
+      :Установить статус REJECTED;
+    else (HTTP 5xx / timeout)
+      :Установить chargeStatus PAYMENT_ERROR;
+      :Установить статус ERROR;
+      :Вернуть HTTP 503 / 504;
+      |Система денежных переводов|
+      :Не продолжать перевод;
+      stop
+    endif
+  endif
+
+  |Banking Billing System|
+  :Сохранить результат
+  в billing_operation
+  и billing_charge;
+  :Вернуть HTTP 200,
+  operationId, комиссию,
+  billingDecision и HATEOAS-ссылки;
+endif
 
 |Система денежных переводов|
-:Получить итоговый результат;
-stop
+:Получить результат Billing;
+
+if (billingDecision = APPROVED?) then (Нет)
+  :Не выполнять
+  денежный перевод;
+  stop
+else (Да)
+endif
+
+:Выполнить денежный перевод;
+
+if (Перевод выполнен успешно?) then (Да)
+  :PATCH /api/v1/billing-operations/{operationId}
+  transferStatus = COMPLETED
+  Idempotency-Key + If-Match;
+
+  |Banking Billing System|
+  :Проверить Idempotency-Key,
+  If-Match и статус ресурса;
+
+  if (Ресурс доступен для изменения?) then (Нет)
+    :Вернуть HTTP 412 / 423 / 428;
+    |Система денежных переводов|
+    :Обработать ошибку изменения;
+    stop
+  else (Да)
+  endif
+
+  |Banking Billing System|
+  if (chargeStatus = RESERVED?) then (Да)
+    repeat
+      :POST /api/v1/debits
+      Списание зарезервированной комиссии;
+      |АБС|
+      :Выполнить списание комиссии;
+      :Вернуть HTTP-ответ;
+      |Banking Billing System|
+    repeat while (HTTP 5xx / timeout
+    AND Retry count < 3?) is (Да)
+    ->Нет;
+
+    if (HTTP 200?) then (Да)
+      :Установить chargeStatus PAID;
+      :Установить статус COMPLETED;
+    else (HTTP 5xx / timeout)
+      :Установить chargeStatus PAYMENT_ERROR;
+      :Установить статус ERROR;
+      :Вернуть HTTP 503 / 504;
+      |Система денежных переводов|
+      :Зафиксировать техническую ошибку;
+      stop
+    endif
+  else (NO_CHARGE)
+    :Установить статус COMPLETED;
+  endif
+
+  |Banking Billing System|
+  :Сохранить итоговый статус;
+  :Вернуть HTTP 200;
+
+  |Система денежных переводов|
+  :Получить подтверждение
+  завершения биллинга;
+  stop
+
+else (Нет)
+  :PATCH /api/v1/billing-operations/{operationId}
+  transferStatus = FAILED
+  Idempotency-Key + If-Match;
+
+  |Banking Billing System|
+  :Проверить Idempotency-Key,
+  If-Match и статус ресурса;
+
+  if (chargeStatus = RESERVED?) then (Да)
+    :Отменить резервирование
+    комиссии в АБС;
+  else (Нет)
+  endif
+
+  :Установить chargeStatus NOT_CHARGED;
+  :Установить статус CANCELLED;
+  :Сохранить итоговый статус;
+  :Вернуть HTTP 200;
+
+  |Система денежных переводов|
+  :Завершить процесс
+  без списания комиссии;
+  stop
+endif
 
 @enduml

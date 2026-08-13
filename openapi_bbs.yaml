@@ -1,0 +1,266 @@
+openapi: 3.0.3
+info:
+  title: Banking Billing System API
+  version: 1.0.0
+  description: API для расчёта комиссии и фиксации результата денежной операции.
+
+servers:
+  - url: https://api.example.com
+
+paths:
+  /api/v1/billing-operations:
+    post:
+      summary: Рассчитать комиссию
+      description: Рассчитывает комиссию и проверяет возможность её списания до выполнения денежной операции.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Ключ защиты от повторного выполнения запроса
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+          example: billing-12345
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './billing_api.schema.json#/definitions/BillingOperationCreateRequest'
+            example:
+              externalOperationId: transfer-10001
+              clientId: client-101
+              accountId: account-501
+              operationType: TRANSFER
+              operationAmount: 15000.00
+              operationCurrency: RUB
+              operationDate: '2026-08-13T10:00:00Z'
+      responses:
+        '200':
+          description: Комиссия рассчитана
+          headers:
+            ETag:
+              description: Текущая версия ресурса
+              schema:
+                type: string
+              example: '"1"'
+          content:
+            application/json:
+              schema:
+                $ref: './billing_api.schema.json#/definitions/BillingOperationResponse'
+              example:
+                operationId: billing-70001
+                externalOperationId: transfer-10001
+                status: CALCULATED
+                billingDecision: APPROVED
+                commissionAmount: 150.00
+                commissionCurrency: RUB
+                chargeStatus: RESERVED
+                _links:
+                  self:
+                    href: /api/v1/billing-operations/billing-70001
+                    method: GET
+                  update:
+                    href: /api/v1/billing-operations/billing-70001
+                    method: PATCH
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+
+  /api/v1/billing-operations/{operationId}:
+    parameters:
+      - name: operationId
+        in: path
+        required: true
+        description: Идентификатор биллинговой операции
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+        example: billing-70001
+
+    get:
+      summary: Получить биллинговую операцию
+      responses:
+        '200':
+          description: Операция найдена
+          headers:
+            ETag:
+              description: Текущая версия ресурса
+              schema:
+                type: string
+              example: '"1"'
+          content:
+            application/json:
+              schema:
+                $ref: './billing_api.schema.json#/definitions/BillingOperationResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      summary: Зафиксировать результат денежной операции
+      description: После выполнения перевода фиксирует его результат и завершает работу с комиссией.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Ключ защиты от повторного выполнения запроса
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+          example: finalize-12345
+        - name: If-Match
+          in: header
+          required: true
+          description: ETag версии ресурса
+          schema:
+            type: string
+          example: '"1"'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './billing_api.schema.json#/definitions/BillingOperationPatchRequest'
+            example:
+              transferStatus: COMPLETED
+      responses:
+        '200':
+          description: Результат операции зафиксирован
+          content:
+            application/json:
+              schema:
+                $ref: './billing_api.schema.json#/definitions/BillingOperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '423':
+          $ref: '#/components/responses/Locked'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+
+components:
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+          example:
+            code: INVALID_REQUEST
+            message: Некорректные данные запроса
+
+    NotFound:
+      description: Операция не найдена
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    Conflict:
+      description: Конфликт идемпотентности
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    Unprocessable:
+      description: Операция не может быть выполнена по бизнес-правилам
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    PreconditionFailed:
+      description: If-Match не соответствует текущему ETag
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    Locked:
+      description: Ресурс заблокирован для изменения
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    PreconditionRequired:
+      description: Не передан обязательный If-Match
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    TooManyRequests:
+      description: Превышен лимит запросов
+      headers:
+        Retry-After:
+          description: Через сколько секунд можно повторить запрос
+          schema:
+            type: integer
+            minimum: 1
+            default: 30
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    InternalError:
+      description: Внутренняя ошибка сервиса
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    ServiceUnavailable:
+      description: Сервис временно недоступен
+      headers:
+        Retry-After:
+          description: Через сколько секунд можно повторить запрос
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
+
+    GatewayTimeout:
+      description: Не получен ответ зависимого сервиса
+      content:
+        application/json:
+          schema:
+            $ref: './billing_api.schema.json#/definitions/ErrorResponse'
