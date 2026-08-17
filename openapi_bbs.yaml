@@ -3,21 +3,126 @@ openapi: 3.0.3
 info:
   title: Banking Billing System API
   version: 1.0.0
-  description: API для расчёта комиссии и фиксации результата денежной операции.
+  description: API для расчёта комиссии и работы с биллинговыми операциями.
 
 servers:
   - url: https://api.example.com
 
 paths:
+  /api/v1/billing-operations/{operationId}:
+    parameters:
+      - name: operationId
+        in: path
+        required: true
+        description: Идентификатор биллинговой операции
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+        example: billing-70001
+
+    get:
+      summary: Получить биллинговую операцию
+      security:
+        - OAuth2:
+            - billing.read
+      responses:
+        '200':
+          description: Операция найдена
+          headers:
+            ETag:
+              description: Текущая версия ресурса
+              schema:
+                type: string
+              example: '"1"'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingOperationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/billing-operations:
+    get:
+      summary: Получить список биллинговых операций
+      security:
+        - OAuth2:
+            - billing.read
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          description: Фильтр по клиенту
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу
+          schema:
+            type: string
+            enum:
+              - CALCULATED
+              - REJECTED
+              - COMPLETED
+              - CANCELLED
+              - ERROR
+        - name: page
+          in: query
+          required: false
+          description: Номер страницы
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: Количество элементов на странице
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список биллинговых операций
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingOperationListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     post:
       summary: Рассчитать комиссию
       description: Рассчитывает комиссию и проверяет возможность её списания до выполнения денежной операции.
+      security:
+        - OAuth2:
+            - billing.write
       parameters:
         - name: Idempotency-Key
           in: header
           required: true
-          description: Ключ защиты от повторного выполнения запроса
+          description: Ключ защиты от повторного выполнения POST-запроса
           schema:
             type: string
             minLength: 8
@@ -36,7 +141,7 @@ paths:
               operationType: TRANSFER
               operationAmount: 15000.00
               operationCurrency: RUB
-              operationDate: '2026-08-13T10:00:00Z'
+              operationDate: '2026-08-17T10:00:00Z'
       responses:
         '200':
           description: Комиссия рассчитана
@@ -50,23 +155,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BillingOperationResponse'
-              example:
-                operationId: billing-70001
-                externalOperationId: transfer-10001
-                status: CALCULATED
-                billingDecision: APPROVED
-                commissionAmount: 150.00
-                commissionCurrency: RUB
-                chargeStatus: RESERVED
-                _links:
-                  self:
-                    href: /api/v1/billing-operations/billing-70001
-                    method: GET
-                  update:
-                    href: /api/v1/billing-operations/billing-70001
-                    method: PATCH
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -80,59 +176,21 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
 
-  /api/v1/billing-operations/{operationId}:
-    parameters:
-      - name: operationId
-        in: path
-        required: true
-        description: Идентификатор биллинговой операции
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 64
-        example: billing-70001
-
-    get:
-      summary: Получить биллинговую операцию
-      responses:
-        '200':
-          description: Операция найдена
-          headers:
-            ETag:
-              description: Текущая версия ресурса
-              schema:
-                type: string
-              example: '"1"'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BillingOperationResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
     patch:
       summary: Зафиксировать результат денежной операции
       description: После выполнения перевода фиксирует его результат и завершает работу с комиссией.
+      security:
+        - OAuth2:
+            - billing.write
       parameters:
-        - name: Idempotency-Key
-          in: header
-          required: true
-          description: Ключ защиты от повторного выполнения запроса
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 64
-          example: finalize-12345
         - name: If-Match
           in: header
           required: true
-          description: ETag версии ресурса
+          description: ETag текущей версии ресурса
           schema:
             type: string
+            minLength: 1
+            maxLength: 64
           example: '"1"'
       requestBody:
         required: true
@@ -145,18 +203,28 @@ paths:
       responses:
         '200':
           description: Результат операции зафиксирован
+          headers:
+            ETag:
+              description: Новая версия ресурса
+              schema:
+                type: string
+              example: '"2"'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BillingOperationResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
         '423':
           $ref: '#/components/responses/Locked'
         '428':
@@ -171,6 +239,16 @@ paths:
           $ref: '#/components/responses/GatewayTimeout'
 
 components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth2/token
+          scopes:
+            billing.read: Чтение биллинговых операций
+            billing.write: Создание и изменение биллинговых операций
+
   schemas:
     BillingOperationCreateRequest:
       type: object
@@ -188,19 +266,16 @@ components:
           type: string
           minLength: 1
           maxLength: 64
-          description: Идентификатор денежной операции во внешней системе
           example: transfer-10001
         clientId:
           type: string
           minLength: 1
           maxLength: 64
-          description: Идентификатор клиента
           example: client-101
         accountId:
           type: string
           minLength: 1
           maxLength: 64
-          description: Идентификатор счёта
           example: account-501
         operationType:
           type: string
@@ -208,7 +283,6 @@ components:
             - TRANSFER
             - PAYMENT
             - CASH_WITHDRAWAL
-          description: Тип денежной операции
           example: TRANSFER
         operationAmount:
           type: number
@@ -216,20 +290,17 @@ components:
           minimum: 0.01
           maximum: 999999999999.99
           multipleOf: 0.01
-          description: Сумма операции
           example: 15000.00
         operationCurrency:
           type: string
           minLength: 3
           maxLength: 3
           pattern: '^[A-Z]{3}$'
-          description: Валюта операции
           example: RUB
         operationDate:
           type: string
           format: date-time
-          description: Дата и время операции
-          example: '2026-08-13T10:00:00Z'
+          example: '2026-08-17T10:00:00Z'
 
     BillingOperationPatchRequest:
       type: object
@@ -242,7 +313,6 @@ components:
           enum:
             - COMPLETED
             - FAILED
-          description: Результат выполнения денежной операции
           example: COMPLETED
 
     BillingOperationResponse:
@@ -262,13 +332,11 @@ components:
           type: string
           minLength: 1
           maxLength: 64
-          description: Идентификатор биллинговой операции
           example: billing-70001
         externalOperationId:
           type: string
           minLength: 1
           maxLength: 64
-          description: Идентификатор денежной операции во внешней системе
           example: transfer-10001
         status:
           type: string
@@ -278,14 +346,12 @@ components:
             - COMPLETED
             - CANCELLED
             - ERROR
-          description: Статус биллинговой операции
           example: CALCULATED
         billingDecision:
           type: string
           enum:
             - APPROVED
             - REJECTED
-          description: Решение о возможности продолжения денежной операции
           example: APPROVED
         decisionReason:
           type: string
@@ -294,22 +360,18 @@ components:
             - ACCOUNT_BLOCKED
             - ACCOUNT_CLOSED
             - TARIFF_NOT_FOUND
-          description: Причина отказа
-          example: INSUFFICIENT_FUNDS
         commissionAmount:
           type: number
           format: double
           minimum: 0
           maximum: 999999999999.99
           multipleOf: 0.01
-          description: Размер комиссии
           example: 150.00
         commissionCurrency:
           type: string
           minLength: 3
           maxLength: 3
           pattern: '^[A-Z]{3}$'
-          description: Валюта комиссии
           example: RUB
         chargeStatus:
           type: string
@@ -319,15 +381,66 @@ components:
             - PAID
             - NOT_CHARGED
             - PAYMENT_ERROR
-          description: Статус работы с комиссией
           example: RESERVED
         _links:
-          type: object
-          minProperties: 1
-          maxProperties: 3
-          additionalProperties:
-            $ref: '#/components/schemas/Link'
-          description: Доступные действия с ресурсом
+          $ref: '#/components/schemas/OperationLinks'
+
+    OperationLinks:
+      type: object
+      additionalProperties: false
+      required:
+        - self
+      properties:
+        self:
+          $ref: '#/components/schemas/Link'
+        update:
+          $ref: '#/components/schemas/Link'
+
+    BillingOperationListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - page
+        - size
+        - totalElements
+        - totalPages
+        - _links
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/BillingOperationResponse'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        _links:
+          $ref: '#/components/schemas/CollectionLinks'
+
+    CollectionLinks:
+      type: object
+      additionalProperties: false
+      required:
+        - self
+      properties:
+        self:
+          $ref: '#/components/schemas/Link'
+        next:
+          $ref: '#/components/schemas/Link'
+        prev:
+          $ref: '#/components/schemas/Link'
 
     Link:
       type: object
@@ -340,14 +453,13 @@ components:
           type: string
           minLength: 1
           maxLength: 2048
-          description: Ссылка на ресурс
           example: /api/v1/billing-operations/billing-70001
         method:
           type: string
           enum:
             - GET
             - PATCH
-          description: HTTP-метод
+            - POST
           example: GET
 
     ErrorResponse:
@@ -361,13 +473,11 @@ components:
           type: string
           minLength: 3
           maxLength: 64
-          description: Код ошибки
           example: INVALID_REQUEST
         message:
           type: string
           minLength: 1
           maxLength: 500
-          description: Описание ошибки
           example: Некорректные данные запроса
 
   responses:
@@ -378,8 +488,22 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
 
+    Unauthorized:
+      description: Не передан или недействителен токен доступа
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Недостаточно прав для выполнения операции
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
     NotFound:
-      description: Операция не найдена
+      description: Клиент, счёт или биллинговая операция не найдены
       content:
         application/json:
           schema:
@@ -456,7 +580,7 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
     GatewayTimeout:
-      description: Не получен ответ зависимого сервиса
+      description: Не получен ответ зависимого сервиса в установленное время
       content:
         application/json:
           schema:

@@ -1,31 +1,23 @@
 {
   "title": "Banking Billing System API Schema",
-  "type": "object",
-  "definitions": {
-    "Link": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "href",
-        "method"
-      ],
-      "properties": {
-        "href": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 2048,
-          "description": "Ссылка на доступное действие"
-        },
-        "method": {
-          "type": "string",
-          "enum": [
-            "GET",
-            "PATCH"
-          ],
-          "description": "HTTP-метод для перехода по ссылке"
-        }
-      }
+  "oneOf": [
+    {
+      "$ref": "#/definitions/BillingOperationCreateRequest"
     },
+    {
+      "$ref": "#/definitions/BillingOperationPatchRequest"
+    },
+    {
+      "$ref": "#/definitions/BillingOperationResponse"
+    },
+    {
+      "$ref": "#/definitions/BillingOperationListResponse"
+    },
+    {
+      "$ref": "#/definitions/ErrorResponse"
+    }
+  ],
+  "definitions": {
     "BillingOperationCreateRequest": {
       "type": "object",
       "additionalProperties": false,
@@ -42,20 +34,17 @@
         "externalOperationId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 64,
-          "description": "Идентификатор денежной операции во внешней системе"
+          "maxLength": 64
         },
         "clientId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 64,
-          "description": "Идентификатор клиента"
+          "maxLength": 64
         },
         "accountId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 64,
-          "description": "Идентификатор счёта"
+          "maxLength": 64
         },
         "operationType": {
           "type": "string",
@@ -63,27 +52,23 @@
             "TRANSFER",
             "PAYMENT",
             "CASH_WITHDRAWAL"
-          ],
-          "description": "Тип денежной операции"
+          ]
         },
         "operationAmount": {
           "type": "number",
           "minimum": 0.01,
           "maximum": 999999999999.99,
-          "multipleOf": 0.01,
-          "description": "Сумма операции"
+          "multipleOf": 0.01
         },
         "operationCurrency": {
           "type": "string",
-          "pattern": "^[A-Z]{3}$",
           "minLength": 3,
           "maxLength": 3,
-          "description": "Валюта операции в трёхбуквенном формате"
+          "pattern": "^[A-Z]{3}$"
         },
         "operationDate": {
           "type": "string",
-          "format": "date-time",
-          "description": "Дата и время операции"
+          "format": "date-time"
         }
       }
     },
@@ -99,8 +84,7 @@
           "enum": [
             "COMPLETED",
             "FAILED"
-          ],
-          "description": "Результат выполнения денежной операции"
+          ]
         }
       }
     },
@@ -121,14 +105,12 @@
         "operationId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 64,
-          "description": "Идентификатор биллинговой операции"
+          "maxLength": 64
         },
         "externalOperationId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 64,
-          "description": "Идентификатор исходной денежной операции"
+          "maxLength": 64
         },
         "status": {
           "type": "string",
@@ -138,16 +120,14 @@
             "COMPLETED",
             "CANCELLED",
             "ERROR"
-          ],
-          "description": "Статус биллинговой операции"
+          ]
         },
         "billingDecision": {
           "type": "string",
           "enum": [
             "APPROVED",
             "REJECTED"
-          ],
-          "description": "Можно ли продолжать денежную операцию"
+          ]
         },
         "decisionReason": {
           "type": "string",
@@ -156,22 +136,19 @@
             "ACCOUNT_BLOCKED",
             "ACCOUNT_CLOSED",
             "TARIFF_NOT_FOUND"
-          ],
-          "description": "Причина отказа"
+          ]
         },
         "commissionAmount": {
           "type": "number",
           "minimum": 0,
           "maximum": 999999999999.99,
-          "multipleOf": 0.01,
-          "description": "Размер комиссии"
+          "multipleOf": 0.01
         },
         "commissionCurrency": {
           "type": "string",
-          "pattern": "^[A-Z]{3}$",
           "minLength": 3,
           "maxLength": 3,
-          "description": "Валюта комиссии"
+          "pattern": "^[A-Z]{3}$"
         },
         "chargeStatus": {
           "type": "string",
@@ -181,17 +158,108 @@
             "PAID",
             "NOT_CHARGED",
             "PAYMENT_ERROR"
-          ],
-          "description": "Статус работы с комиссией"
+          ]
         },
         "_links": {
-          "type": "object",
-          "minProperties": 1,
-          "maxProperties": 3,
-          "additionalProperties": {
-            "$ref": "#/definitions/Link"
-          },
-          "description": "Доступные действия с ресурсом"
+          "$ref": "#/definitions/OperationLinks"
+        }
+      }
+    },
+    "OperationLinks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "self"
+      ],
+      "properties": {
+        "self": {
+          "$ref": "#/definitions/Link"
+        },
+        "update": {
+          "$ref": "#/definitions/Link"
+        }
+      }
+    },
+    "BillingOperationListResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "page",
+        "size",
+        "totalElements",
+        "totalPages",
+        "_links"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/definitions/BillingOperationResponse"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "totalElements": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalPages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "_links": {
+          "$ref": "#/definitions/CollectionLinks"
+        }
+      }
+    },
+    "CollectionLinks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "self"
+      ],
+      "properties": {
+        "self": {
+          "$ref": "#/definitions/Link"
+        },
+        "next": {
+          "$ref": "#/definitions/Link"
+        },
+        "prev": {
+          "$ref": "#/definitions/Link"
+        }
+      }
+    },
+    "Link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "href",
+        "method"
+      ],
+      "properties": {
+        "href": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "PATCH",
+            "POST"
+          ]
         }
       }
     },
@@ -206,14 +274,12 @@
         "code": {
           "type": "string",
           "minLength": 3,
-          "maxLength": 64,
-          "description": "Код ошибки"
+          "maxLength": 64
         },
         "message": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 500,
-          "description": "Описание ошибки"
+          "maxLength": 500
         }
       }
     }
