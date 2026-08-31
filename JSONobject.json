@@ -1,0 +1,66 @@
+{
+  "chargeId": "77777777-7777-7777-7777-777777777772",
+  "createdAt": "2026-08-15T11:00:02+03:00",
+  "event": {
+    "eventId": "f2222222-2222-2222-2222-222222222222",
+    "operationType": "TRANSFER",
+    "amount": 10000.0,
+    "currency": "RUB",
+    "operationAt": "2026-08-15T11:00:00+03:00",
+    "sourceSystem": "PAYMENT_PROCESSING"
+  },
+  "tariff": {
+    "tariffId": "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+    "name": "Перевод Premium",
+    "calculationType": "PERCENT",
+    "fixedAmount": null,
+    "percentage": 0.5,
+    "minAmount": 10.0,
+    "maxAmount": 300.0
+  },
+  "benefit": {
+    "benefitId": "dddddddd-dddd-dddd-dddd-ddddddddddd1",
+    "benefitType": "DISCOUNT_PERCENT",
+    "discountPercent": 20.0,
+    "discountAmount": null
+  },
+  "calculation": {
+    "baseAmount": 50.0,
+    "discountAmount": 10.0,
+    "finalAmount": 40.0,
+    "currency": "RUB",
+    "calculatedAt": "2026-08-15T11:00:02+03:00"
+  },
+  "debit": {
+    "debitOrderId": "66666666-6666-6666-6666-666666666662",
+    "accountId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+    "amount": 40.0,
+    "currency": "RUB",
+    "status": "PAID",
+    "attemptCount": 1
+  },
+  "adjustments": [],
+  "refunds": [
+    {
+      "refundId": "44444444-4444-4444-4444-444444444441",
+      "amount": 40.0,
+      "reason": "Возврат комиссии по обращению клиента",
+      "status": "COMPLETED",
+      "createdAt": "2026-08-17T14:00:00+03:00"
+    }
+  ],
+  "history": [
+    {
+      "status": "CALCULATED",
+      "changedAt": "2026-08-15T11:00:02+03:00"
+    },
+    {
+      "status": "PAID",
+      "changedAt": "2026-08-15T11:00:04+03:00"
+    },
+    {
+      "status": "REFUNDED",
+      "changedAt": "2026-08-17T14:00:00+03:00"
+    }
+  ]
+}

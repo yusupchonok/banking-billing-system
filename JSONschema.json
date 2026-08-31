@@ -1,0 +1,327 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/billing-history.schema.json",
+  "title": "BillingHistoryDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "chargeId",
+    "createdAt",
+    "tariff",
+    "calculation",
+    "adjustments",
+    "refunds",
+    "history"
+  ],
+  "properties": {
+    "chargeId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "event": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "operationType",
+        "amount",
+        "currency",
+        "operationAt",
+        "sourceSystem"
+      ],
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "operationType": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+        },
+        "operationAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sourceSystem": {
+          "type": "string"
+        }
+      }
+    },
+    "tariff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tariffId",
+        "name",
+        "calculationType"
+      ],
+      "properties": {
+        "tariffId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "calculationType": {
+          "type": "string",
+          "enum": [
+            "FIXED",
+            "PERCENT",
+            "FIXED_PLUS_PERCENT"
+          ]
+        },
+        "fixedAmount": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "percentage": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "minAmount": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "maxAmount": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "benefit": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "benefitId",
+        "benefitType"
+      ],
+      "properties": {
+        "benefitId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "benefitType": {
+          "type": "string"
+        },
+        "discountPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "discountAmount": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "calculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseAmount",
+        "discountAmount",
+        "finalAmount",
+        "currency",
+        "calculatedAt"
+      ],
+      "properties": {
+        "baseAmount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "discountAmount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "finalAmount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+        },
+        "calculatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "debit": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "debitOrderId",
+        "accountId",
+        "amount",
+        "currency",
+        "status",
+        "attemptCount"
+      ],
+      "properties": {
+        "debitOrderId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "accountId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "PROCESSING",
+            "PAID",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        "attemptCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "adjustments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "adjustmentId",
+          "amount",
+          "reason",
+          "createdAt"
+        ],
+        "properties": {
+          "adjustmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "refunds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "refundId",
+          "amount",
+          "reason",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "refundId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "PROCESSING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "changedAt"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}
