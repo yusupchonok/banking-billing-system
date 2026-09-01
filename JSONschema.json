@@ -1,7 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.com/billing-history.schema.json",
-  "title": "BillingHistoryDocument",
+  "title": "BillingHistory",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -42,16 +41,23 @@
           "format": "uuid"
         },
         "operationType": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "TRANSFER",
+            "PAYMENT",
+            "CASH_WITHDRAWAL",
+            "CARD_SERVICE",
+            "FX_TRANSFER"
+          ]
         },
         "amount": {
           "type": "number",
-          "minimum": 0
+          "exclusiveMinimum": 0
         },
         "currency": {
           "type": "string",
-          "minLength": 3,
-          "maxLength": 3
+          "pattern": "^[A-Z]{3}$",
+          "description": "Код валюты по стандарту ISO 4217"
         },
         "operationAt": {
           "type": "string",
@@ -98,7 +104,8 @@
             "number",
             "null"
           ],
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 100
         },
         "minAmount": {
           "type": [
@@ -132,7 +139,12 @@
           "format": "uuid"
         },
         "benefitType": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "PERCENT_DISCOUNT",
+            "FIXED_DISCOUNT",
+            "FREE_OPERATIONS"
+          ]
         },
         "discountPercent": {
           "type": [
@@ -176,8 +188,8 @@
         },
         "currency": {
           "type": "string",
-          "minLength": 3,
-          "maxLength": 3
+          "pattern": "^[A-Z]{3}$",
+          "description": "Код валюты по стандарту ISO 4217"
         },
         "calculatedAt": {
           "type": "string",
@@ -210,21 +222,20 @@
         },
         "amount": {
           "type": "number",
-          "minimum": 0
+          "exclusiveMinimum": 0
         },
         "currency": {
           "type": "string",
-          "minLength": 3,
-          "maxLength": 3
+          "pattern": "^[A-Z]{3}$",
+          "description": "Код валюты по стандарту ISO 4217"
         },
         "status": {
           "type": "string",
           "enum": [
-            "PENDING",
+            "CREATED",
             "PROCESSING",
             "PAID",
-            "FAILED",
-            "CANCELLED"
+            "FAILED"
           ]
         },
         "attemptCount": {
@@ -250,7 +261,10 @@
             "format": "uuid"
           },
           "amount": {
-            "type": "number"
+            "type": "number",
+            "not": {
+              "const": 0
+            }
           },
           "reason": {
             "type": "string"
@@ -314,7 +328,13 @@
         ],
         "properties": {
           "status": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "CALCULATED",
+              "PAID",
+              "FAILED",
+              "REFUNDED"
+            ]
           },
           "changedAt": {
             "type": "string",

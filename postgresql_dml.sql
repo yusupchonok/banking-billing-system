@@ -17,7 +17,6 @@ INSERT INTO billing.client (
     '2026-08-01 09:10:00+03'
 );
 
-
 INSERT INTO billing.account (
     account_id,
     client_id,
@@ -43,7 +42,6 @@ INSERT INTO billing.account (
     '2026-08-01 09:25:00+03'
 );
 
-
 INSERT INTO billing.bank_product (
     product_id,
     name,
@@ -54,18 +52,17 @@ INSERT INTO billing.bank_product (
 (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
     'Дебетовая карта',
-    'DEBIT_CARD',
+    'CARD',
     'ACTIVE',
     '2026-08-01 10:00:00+03'
 ),
 (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2',
     'Расчётный счёт',
-    'CURRENT_ACCOUNT',
+    'ACCOUNT',
     'ACTIVE',
     '2026-08-01 10:10:00+03'
 );
-
 
 INSERT INTO billing.tariff (
     tariff_id,
@@ -148,7 +145,6 @@ INSERT INTO billing.tariff (
     'ACTIVE'
 );
 
-
 INSERT INTO billing.benefit (
     benefit_id,
     client_id,
@@ -165,7 +161,7 @@ INSERT INTO billing.benefit (
     'dddddddd-dddd-dddd-dddd-ddddddddddd1',
     '22222222-2222-2222-2222-222222222222',
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
-    'DISCOUNT_PERCENT',
+    'PERCENT_DISCOUNT',
     20.0000,
     NULL,
     NULL,
@@ -173,7 +169,6 @@ INSERT INTO billing.benefit (
     NULL,
     'ACTIVE'
 );
-
 
 INSERT INTO billing.exchange_rate (
     exchange_rate_id,
@@ -191,7 +186,6 @@ INSERT INTO billing.exchange_rate (
     '2026-08-15',
     'CBR'
 );
-
 
 INSERT INTO billing.billing_event (
     event_id,
@@ -254,7 +248,6 @@ INSERT INTO billing.billing_event (
     '2026-08-15 13:00:01+03'
 );
 
-
 INSERT INTO billing.periodic_charge (
     periodic_charge_id,
     client_id,
@@ -275,7 +268,6 @@ INSERT INTO billing.periodic_charge (
     'ACTIVE',
     '2026-08-01 12:00:00+03'
 );
-
 
 INSERT INTO billing.charge (
     charge_id,
@@ -340,9 +332,8 @@ INSERT INTO billing.charge (
     'RUB',
     0.00,
     '2026-08-01 12:01:00+03',
-    'PENDING_PAYMENT'
+    'CALCULATED'
 );
-
 
 INSERT INTO billing.debit_order (
     debit_order_id,
@@ -399,12 +390,11 @@ INSERT INTO billing.debit_order (
     199.00,
     'RUB',
     'Комиссия за обслуживание карты',
-    'PENDING',
+    'CREATED',
     0,
     '2026-08-01 12:01:01+03',
     NULL
 );
-
 
 INSERT INTO billing.adjustment (
     adjustment_id,
@@ -422,7 +412,6 @@ INSERT INTO billing.adjustment (
     'billing_operator',
     '2026-08-16 09:00:00+03'
 );
-
 
 INSERT INTO billing.refund (
     refund_id,

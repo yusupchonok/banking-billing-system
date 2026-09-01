@@ -20,7 +20,7 @@
   },
   "benefit": {
     "benefitId": "dddddddd-dddd-dddd-dddd-ddddddddddd1",
-    "benefitType": "DISCOUNT_PERCENT",
+    "benefitType": "PERCENT_DISCOUNT",
     "discountPercent": 20.0,
     "discountAmount": null
   },
