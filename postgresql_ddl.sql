@@ -1,112 +1,16 @@
 CREATE SCHEMA IF NOT EXISTS billing;
 
-CREATE TYPE billing.client_category_enum AS ENUM (
-    'STANDARD',
-    'PREMIUM'
-);
-
-CREATE TYPE billing.client_status_enum AS ENUM (
-    'ACTIVE',
-    'BLOCKED',
-    'CLOSED'
-);
-
-CREATE TYPE billing.account_status_enum AS ENUM (
-    'ACTIVE',
-    'BLOCKED',
-    'CLOSED'
-);
-
-CREATE TYPE billing.product_type_enum AS ENUM (
-    'ACCOUNT',
-    'CARD',
-    'DEPOSIT',
-    'LOAN'
-);
-
-CREATE TYPE billing.product_status_enum AS ENUM (
-    'ACTIVE',
-    'INACTIVE',
-    'ARCHIVED'
-);
-
-CREATE TYPE billing.operation_type_enum AS ENUM (
-    'TRANSFER',
-    'PAYMENT',
-    'CASH_WITHDRAWAL',
-    'CARD_SERVICE',
-    'FX_TRANSFER'
-);
-
-CREATE TYPE billing.billing_event_status_enum AS ENUM (
-    'NEW',
-    'PROCESSED',
-    'FAILED'
-);
-
-CREATE TYPE billing.calculation_type_enum AS ENUM (
-    'FIXED',
-    'PERCENT',
-    'FIXED_PLUS_PERCENT'
-);
-
-CREATE TYPE billing.tariff_status_enum AS ENUM (
-    'ACTIVE',
-    'INACTIVE',
-    'ARCHIVED'
-);
-
-CREATE TYPE billing.benefit_type_enum AS ENUM (
-    'PERCENT_DISCOUNT',
-    'FIXED_DISCOUNT',
-    'FREE_OPERATIONS'
-);
-
-CREATE TYPE billing.benefit_status_enum AS ENUM (
-    'ACTIVE',
-    'INACTIVE',
-    'EXPIRED'
-);
-
-CREATE TYPE billing.periodicity_enum AS ENUM (
-    'DAILY',
-    'WEEKLY',
-    'MONTHLY',
-    'YEARLY'
-);
-
-CREATE TYPE billing.periodic_charge_status_enum AS ENUM (
-    'ACTIVE',
-    'PAUSED',
-    'CLOSED'
-);
-
-CREATE TYPE billing.charge_status_enum AS ENUM (
-    'CALCULATED',
-    'PAID',
-    'FAILED',
-    'REFUNDED'
-);
-
-CREATE TYPE billing.debit_order_status_enum AS ENUM (
-    'CREATED',
-    'PROCESSING',
-    'PAID',
-    'FAILED'
-);
-
-CREATE TYPE billing.refund_status_enum AS ENUM (
-    'CREATED',
-    'PROCESSING',
-    'COMPLETED',
-    'FAILED'
-);
-
 CREATE TABLE billing.client (
     client_id UUID PRIMARY KEY,
-    category billing.client_category_enum NOT NULL,
-    status billing.client_status_enum NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL
+    category VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT chk_client_category
+        CHECK (category IN ('STANDARD', 'PREMIUM')),
+
+    CONSTRAINT chk_client_status
+        CHECK (status IN ('ACTIVE', 'BLOCKED', 'CLOSED'))
 );
 
 CREATE TABLE billing.account (
@@ -114,7 +18,7 @@ CREATE TABLE billing.account (
     client_id UUID NOT NULL,
     account_number VARCHAR(34) NOT NULL UNIQUE,
     currency VARCHAR(3) NOT NULL,
-    status billing.account_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT fk_account_client
@@ -122,27 +26,36 @@ CREATE TABLE billing.account (
         REFERENCES billing.client(client_id),
 
     CONSTRAINT chk_account_currency
-        CHECK (currency ~ '^[A-Z]{3}$')
+        CHECK (currency ~ '^[A-Z]{3}$'),
+
+    CONSTRAINT chk_account_status
+        CHECK (status IN ('ACTIVE', 'BLOCKED', 'CLOSED'))
 );
 
 CREATE TABLE billing.bank_product (
     product_id UUID PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    product_type billing.product_type_enum NOT NULL,
-    status billing.product_status_enum NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL
+    product_type VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT chk_bank_product_type
+        CHECK (product_type IN ('ACCOUNT', 'CARD', 'DEPOSIT', 'LOAN')),
+
+    CONSTRAINT chk_bank_product_status
+        CHECK (status IN ('ACTIVE', 'INACTIVE', 'ARCHIVED'))
 );
 
 CREATE TABLE billing.billing_event (
     event_id UUID PRIMARY KEY,
     account_id UUID NOT NULL,
     product_id UUID NOT NULL,
-    operation_type billing.operation_type_enum NOT NULL,
+    operation_type VARCHAR(30) NOT NULL,
     operation_amount NUMERIC(15,2) NOT NULL,
     operation_currency VARCHAR(3) NOT NULL,
     operation_at TIMESTAMPTZ NOT NULL,
     source_system VARCHAR(50) NOT NULL,
-    status billing.billing_event_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT fk_billing_event_account
@@ -153,20 +66,34 @@ CREATE TABLE billing.billing_event (
         FOREIGN KEY (product_id)
         REFERENCES billing.bank_product(product_id),
 
+    CONSTRAINT chk_billing_event_operation_type
+        CHECK (
+            operation_type IN (
+                'TRANSFER',
+                'PAYMENT',
+                'CASH_WITHDRAWAL',
+                'CARD_SERVICE',
+                'FX_TRANSFER'
+            )
+        ),
+
     CONSTRAINT chk_billing_event_amount
         CHECK (operation_amount > 0),
 
     CONSTRAINT chk_billing_event_currency
-        CHECK (operation_currency ~ '^[A-Z]{3}$')
+        CHECK (operation_currency ~ '^[A-Z]{3}$'),
+
+    CONSTRAINT chk_billing_event_status
+        CHECK (status IN ('NEW', 'PROCESSED', 'FAILED'))
 );
 
 CREATE TABLE billing.tariff (
     tariff_id UUID PRIMARY KEY,
     product_id UUID NOT NULL,
     name VARCHAR(100) NOT NULL,
-    client_category billing.client_category_enum,
-    operation_type billing.operation_type_enum NOT NULL,
-    calculation_type billing.calculation_type_enum NOT NULL,
+    client_category VARCHAR(30),
+    operation_type VARCHAR(30) NOT NULL,
+    calculation_type VARCHAR(30) NOT NULL,
     fixed_amount NUMERIC(15,2),
     percentage NUMERIC(7,4),
     min_amount NUMERIC(15,2),
@@ -174,19 +101,36 @@ CREATE TABLE billing.tariff (
     currency VARCHAR(3) NOT NULL,
     valid_from DATE NOT NULL,
     valid_to DATE,
-    status billing.tariff_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
 
     CONSTRAINT fk_tariff_product
         FOREIGN KEY (product_id)
         REFERENCES billing.bank_product(product_id),
 
-    CONSTRAINT chk_tariff_currency
-        CHECK (currency ~ '^[A-Z]{3}$'),
-
-    CONSTRAINT chk_tariff_valid_period
+    CONSTRAINT chk_tariff_client_category
         CHECK (
-            valid_to IS NULL
-            OR valid_to >= valid_from
+            client_category IS NULL
+            OR client_category IN ('STANDARD', 'PREMIUM')
+        ),
+
+    CONSTRAINT chk_tariff_operation_type
+        CHECK (
+            operation_type IN (
+                'TRANSFER',
+                'PAYMENT',
+                'CASH_WITHDRAWAL',
+                'CARD_SERVICE',
+                'FX_TRANSFER'
+            )
+        ),
+
+    CONSTRAINT chk_tariff_calculation_type
+        CHECK (
+            calculation_type IN (
+                'FIXED',
+                'PERCENT',
+                'FIXED_PLUS_PERCENT'
+            )
         ),
 
     CONSTRAINT chk_tariff_fixed_amount
@@ -220,6 +164,18 @@ CREATE TABLE billing.tariff (
             OR max_amount >= min_amount
         ),
 
+    CONSTRAINT chk_tariff_currency
+        CHECK (currency ~ '^[A-Z]{3}$'),
+
+    CONSTRAINT chk_tariff_valid_period
+        CHECK (
+            valid_to IS NULL
+            OR valid_to >= valid_from
+        ),
+
+    CONSTRAINT chk_tariff_status
+        CHECK (status IN ('ACTIVE', 'INACTIVE', 'ARCHIVED')),
+
     CONSTRAINT chk_tariff_calculation
         CHECK (
             (
@@ -244,13 +200,13 @@ CREATE TABLE billing.benefit (
     benefit_id UUID PRIMARY KEY,
     client_id UUID NOT NULL,
     product_id UUID NOT NULL,
-    benefit_type billing.benefit_type_enum NOT NULL,
+    benefit_type VARCHAR(30) NOT NULL,
     discount_percent NUMERIC(7,4),
     discount_amount NUMERIC(15,2),
     free_operation_count INTEGER,
     valid_from DATE NOT NULL,
     valid_to DATE,
-    status billing.benefit_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
 
     CONSTRAINT fk_benefit_client
         FOREIGN KEY (client_id)
@@ -260,10 +216,13 @@ CREATE TABLE billing.benefit (
         FOREIGN KEY (product_id)
         REFERENCES billing.bank_product(product_id),
 
-    CONSTRAINT chk_benefit_valid_period
+    CONSTRAINT chk_benefit_type
         CHECK (
-            valid_to IS NULL
-            OR valid_to >= valid_from
+            benefit_type IN (
+                'PERCENT_DISCOUNT',
+                'FIXED_DISCOUNT',
+                'FREE_OPERATIONS'
+            )
         ),
 
     CONSTRAINT chk_benefit_discount_percent
@@ -283,6 +242,15 @@ CREATE TABLE billing.benefit (
             free_operation_count IS NULL
             OR free_operation_count >= 0
         ),
+
+    CONSTRAINT chk_benefit_valid_period
+        CHECK (
+            valid_to IS NULL
+            OR valid_to >= valid_from
+        ),
+
+    CONSTRAINT chk_benefit_status
+        CHECK (status IN ('ACTIVE', 'INACTIVE', 'EXPIRED')),
 
     CONSTRAINT chk_benefit_type_value
         CHECK (
@@ -336,10 +304,10 @@ CREATE TABLE billing.periodic_charge (
     periodic_charge_id UUID PRIMARY KEY,
     client_id UUID NOT NULL,
     product_id UUID NOT NULL,
-    operation_type billing.operation_type_enum NOT NULL,
-    periodicity billing.periodicity_enum NOT NULL,
+    operation_type VARCHAR(30) NOT NULL,
+    periodicity VARCHAR(20) NOT NULL,
     next_charge_date DATE NOT NULL,
-    status billing.periodic_charge_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT fk_periodic_charge_client
@@ -348,7 +316,31 @@ CREATE TABLE billing.periodic_charge (
 
     CONSTRAINT fk_periodic_charge_product
         FOREIGN KEY (product_id)
-        REFERENCES billing.bank_product(product_id)
+        REFERENCES billing.bank_product(product_id),
+
+    CONSTRAINT chk_periodic_charge_operation_type
+        CHECK (
+            operation_type IN (
+                'TRANSFER',
+                'PAYMENT',
+                'CASH_WITHDRAWAL',
+                'CARD_SERVICE',
+                'FX_TRANSFER'
+            )
+        ),
+
+    CONSTRAINT chk_periodic_charge_periodicity
+        CHECK (
+            periodicity IN (
+                'DAILY',
+                'WEEKLY',
+                'MONTHLY',
+                'YEARLY'
+            )
+        ),
+
+    CONSTRAINT chk_periodic_charge_status
+        CHECK (status IN ('ACTIVE', 'PAUSED', 'CLOSED'))
 );
 
 CREATE TABLE billing.charge (
@@ -362,7 +354,7 @@ CREATE TABLE billing.charge (
     currency VARCHAR(3) NOT NULL,
     discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
     calculated_at TIMESTAMPTZ NOT NULL,
-    status billing.charge_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
 
     CONSTRAINT fk_charge_billing_event
         FOREIGN KEY (billing_event_id)
@@ -393,6 +385,9 @@ CREATE TABLE billing.charge (
     CONSTRAINT chk_charge_discount_amount
         CHECK (discount_amount >= 0),
 
+    CONSTRAINT chk_charge_status
+        CHECK (status IN ('CALCULATED', 'PAID', 'FAILED', 'REFUNDED')),
+
     CONSTRAINT chk_charge_source
         CHECK (
             (
@@ -414,7 +409,7 @@ CREATE TABLE billing.debit_order (
     amount NUMERIC(15,2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
     purpose VARCHAR(255) NOT NULL,
-    status billing.debit_order_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
     attempt_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ,
@@ -432,6 +427,16 @@ CREATE TABLE billing.debit_order (
 
     CONSTRAINT chk_debit_order_currency
         CHECK (currency ~ '^[A-Z]{3}$'),
+
+    CONSTRAINT chk_debit_order_status
+        CHECK (
+            status IN (
+                'CREATED',
+                'PROCESSING',
+                'PAID',
+                'FAILED'
+            )
+        ),
 
     CONSTRAINT chk_debit_order_attempt_count
         CHECK (attempt_count >= 0),
@@ -464,7 +469,7 @@ CREATE TABLE billing.refund (
     charge_id UUID NOT NULL,
     amount NUMERIC(15,2) NOT NULL,
     reason TEXT NOT NULL,
-    status billing.refund_status_enum NOT NULL,
+    status VARCHAR(20) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT fk_refund_charge
@@ -472,7 +477,17 @@ CREATE TABLE billing.refund (
         REFERENCES billing.charge(charge_id),
 
     CONSTRAINT chk_refund_amount
-        CHECK (amount > 0)
+        CHECK (amount > 0),
+
+    CONSTRAINT chk_refund_status
+        CHECK (
+            status IN (
+                'CREATED',
+                'PROCESSING',
+                'COMPLETED',
+                'FAILED'
+            )
+        )
 );
 
 CREATE INDEX idx_account_client_id

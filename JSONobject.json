@@ -22,7 +22,8 @@
     "benefitId": "dddddddd-dddd-dddd-dddd-ddddddddddd1",
     "benefitType": "PERCENT_DISCOUNT",
     "discountPercent": 20.0,
-    "discountAmount": null
+    "discountAmount": null,
+    "freeOperationCount": null
   },
   "calculation": {
     "baseAmount": 50.0,

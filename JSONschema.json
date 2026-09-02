@@ -160,6 +160,13 @@
             "null"
           ],
           "minimum": 0
+        },
+        "freeOperationCount": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
         }
       }
     },

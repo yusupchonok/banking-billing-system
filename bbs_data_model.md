@@ -18,8 +18,8 @@
 | Атрибут | Тип данных | Ограничения | Описание |
 |---|---|---|---|
 | client_id | UUID | PK | Уникальный идентификатор клиента |
-| category | client_category_enum | NOT NULL | Категория клиента: `STANDARD`, `PREMIUM` |
-| status | client_status_enum | NOT NULL | Статус клиента: `ACTIVE`, `BLOCKED`, `CLOSED` |
+| category | VARCHAR(30) | NOT NULL, CHECK (category IN ('STANDARD', 'PREMIUM')) | Категория клиента |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('ACTIVE', 'BLOCKED', 'CLOSED')) | Статус клиента |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания записи |
 
 #### Сущность `account`
@@ -30,7 +30,7 @@
 | client_id | UUID | FK, NOT NULL | Ссылка на клиента |
 | account_number | VARCHAR(34) | NOT NULL, UNIQUE | Номер банковского счёта |
 | currency | VARCHAR(3) | NOT NULL | Код валюты по стандарту ISO 4217 |
-| status | account_status_enum | NOT NULL | Статус счёта: `ACTIVE`, `BLOCKED`, `CLOSED` |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('ACTIVE', 'BLOCKED', 'CLOSED')) | Статус счёта |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания счёта |
 
 #### Сущность `bank_product`
@@ -38,9 +38,9 @@
 | Атрибут | Тип данных | Ограничения | Описание |
 |---|---|---|---|
 | product_id | UUID | PK | Уникальный идентификатор банковского продукта |
-| name | VARCHAR(100) | NOT NULL | Название продукта. Не является уникальным |
-| product_type | product_type_enum | NOT NULL | Тип продукта: `ACCOUNT`, `CARD`, `DEPOSIT`, `LOAN` |
-| status | product_status_enum | NOT NULL | Статус продукта: `ACTIVE`, `INACTIVE`, `ARCHIVED` |
+| name | VARCHAR(100) | NOT NULL | Название банковского продукта |
+| product_type | VARCHAR(30) | NOT NULL, CHECK (product_type IN ('ACCOUNT', 'CARD', 'DEPOSIT', 'LOAN')) | Тип банковского продукта |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('ACTIVE', 'INACTIVE', 'ARCHIVED')) | Статус банковского продукта |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания записи |
 
 #### Сущность `billing_event`
@@ -50,12 +50,12 @@
 | event_id | UUID | PK | Уникальный идентификатор биллингового события |
 | account_id | UUID | FK, NOT NULL | Счёт, связанный с операцией |
 | product_id | UUID | FK, NOT NULL | Банковский продукт |
-| operation_type | operation_type_enum | NOT NULL | Тип операции: `TRANSFER`, `PAYMENT`, `CASH_WITHDRAWAL`, `CARD_SERVICE`, `FX_TRANSFER` |
-| operation_amount | NUMERIC(15,2) | NOT NULL, CHECK > 0 | Сумма операции |
+| operation_type | VARCHAR(30) | NOT NULL, CHECK (operation_type IN ('TRANSFER', 'PAYMENT', 'CASH_WITHDRAWAL', 'CARD_SERVICE', 'FX_TRANSFER')) | Тип операции |
+| operation_amount | NUMERIC(15,2) | NOT NULL, CHECK (operation_amount > 0) | Сумма операции |
 | operation_currency | VARCHAR(3) | NOT NULL | Код валюты по стандарту ISO 4217 |
 | operation_at | TIMESTAMPTZ | NOT NULL | Дата и время операции |
 | source_system | VARCHAR(50) | NOT NULL | Система-источник события |
-| status | billing_event_status_enum | NOT NULL | Статус: `NEW`, `PROCESSED`, `FAILED` |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('NEW', 'PROCESSED', 'FAILED')) | Статус обработки события |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания записи |
 
 #### Сущность `tariff`
@@ -64,20 +64,20 @@
 |---|---|---|---|
 | tariff_id | UUID | PK | Уникальный идентификатор тарифа |
 | product_id | UUID | FK, NOT NULL | Банковский продукт |
-| name | VARCHAR(100) | NOT NULL | Название тарифа. Не является уникальным |
-| client_category | client_category_enum | NULL | Категория клиента: `STANDARD`, `PREMIUM` |
-| operation_type | operation_type_enum | NOT NULL | Тип операции |
-| calculation_type | calculation_type_enum | NOT NULL | Тип расчёта: `FIXED`, `PERCENT`, `FIXED_PLUS_PERCENT` |
-| fixed_amount | NUMERIC(15,2) | NULL, CHECK >= 0 | Фиксированная часть комиссии |
-| percentage | NUMERIC(7,4) | NULL, CHECK 0–100 | Процент комиссии |
-| min_amount | NUMERIC(15,2) | NULL, CHECK >= 0 | Минимальная сумма комиссии |
-| max_amount | NUMERIC(15,2) | NULL, CHECK >= min_amount | Максимальная сумма комиссии |
+| name | VARCHAR(100) | NOT NULL | Название тарифа |
+| client_category | VARCHAR(30) | CHECK (client_category IN ('STANDARD', 'PREMIUM')) | Категория клиента |
+| operation_type | VARCHAR(30) | NOT NULL, CHECK (operation_type IN ('TRANSFER', 'PAYMENT', 'CASH_WITHDRAWAL', 'CARD_SERVICE', 'FX_TRANSFER')) | Тип операции |
+| calculation_type | VARCHAR(30) | NOT NULL, CHECK (calculation_type IN ('FIXED', 'PERCENT', 'FIXED_PLUS_PERCENT')) | Тип расчёта комиссии |
+| fixed_amount | NUMERIC(15,2) | CHECK (fixed_amount >= 0) | Фиксированная сумма комиссии |
+| percentage | NUMERIC(7,4) | CHECK (percentage >= 0 AND percentage <= 100) | Процент комиссии |
+| min_amount | NUMERIC(15,2) | CHECK (min_amount >= 0) | Минимальная сумма комиссии |
+| max_amount | NUMERIC(15,2) | CHECK (max_amount >= 0) | Максимальная сумма комиссии |
 | currency | VARCHAR(3) | NOT NULL | Код валюты по стандарту ISO 4217 |
 | valid_from | DATE | NOT NULL | Дата начала действия тарифа |
-| valid_to | DATE | NULL, CHECK >= valid_from | Дата окончания действия тарифа |
-| status | tariff_status_enum | NOT NULL | Статус: `ACTIVE`, `INACTIVE`, `ARCHIVED` |
+| valid_to | DATE | CHECK (valid_to >= valid_from) | Дата окончания действия тарифа |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('ACTIVE', 'INACTIVE', 'ARCHIVED')) | Статус тарифа |
 
-При изменении условий тарифа создаётся новая запись с новым периодом действия valid_from / valid_to.
+При изменении условий тарифа создаётся новая запись с новым периодом действия `valid_from` / `valid_to`.
 
 #### Сущность `benefit`
 
@@ -86,22 +86,22 @@
 | benefit_id | UUID | PK | Уникальный идентификатор льготы |
 | client_id | UUID | FK, NOT NULL | Клиент |
 | product_id | UUID | FK, NOT NULL | Банковский продукт |
-| benefit_type | benefit_type_enum | NOT NULL | Тип льготы: `PERCENT_DISCOUNT`, `FIXED_DISCOUNT`, `FREE_OPERATIONS` |
-| discount_percent | NUMERIC(7,4) | NULL, CHECK 0–100 | Процент скидки |
-| discount_amount | NUMERIC(15,2) | NULL, CHECK >= 0 | Фиксированная сумма скидки |
-| free_operation_count | INTEGER | NULL, CHECK >= 0 | Количество бесплатных операций |
+| benefit_type | VARCHAR(30) | NOT NULL, CHECK (benefit_type IN ('PERCENT_DISCOUNT', 'FIXED_DISCOUNT', 'FREE_OPERATIONS')) | Тип льготы |
+| discount_percent | NUMERIC(7,4) | CHECK (discount_percent >= 0 AND discount_percent <= 100) | Процент скидки |
+| discount_amount | NUMERIC(15,2) | CHECK (discount_amount >= 0) | Фиксированная сумма скидки |
+| free_operation_count | INTEGER | CHECK (free_operation_count >= 0) | Количество бесплатных операций |
 | valid_from | DATE | NOT NULL | Дата начала действия |
-| valid_to | DATE | NULL, CHECK >= valid_from | Дата окончания действия |
-| status | benefit_status_enum | NOT NULL | Статус: `ACTIVE`, `INACTIVE`, `EXPIRED` |
+| valid_to | DATE | CHECK (valid_to >= valid_from) | Дата окончания действия |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('ACTIVE', 'INACTIVE', 'EXPIRED')) | Статус льготы |
 
 #### Сущность `exchange_rate`
 
 | Атрибут | Тип данных | Ограничения | Описание |
 |---|---|---|---|
 | exchange_rate_id | UUID | PK | Уникальный идентификатор курса |
-| base_currency | VARCHAR(3) | NOT NULL | Базовая валюта по ISO 4217 |
-| quote_currency | VARCHAR(3) | NOT NULL | Валюта котировки по ISO 4217 |
-| rate | NUMERIC(18,8) | NOT NULL, CHECK > 0 | Курс валют |
+| base_currency | VARCHAR(3) | NOT NULL | Код базовой валюты по стандарту ISO 4217 |
+| quote_currency | VARCHAR(3) | NOT NULL | Код валюты котировки по стандарту ISO 4217 |
+| rate | NUMERIC(18,8) | NOT NULL, CHECK (rate > 0) | Курс валют |
 | rate_date | DATE | NOT NULL | Дата курса |
 | source | VARCHAR(50) | NOT NULL | Источник курса |
 
@@ -112,10 +112,10 @@
 | periodic_charge_id | UUID | PK | Уникальный идентификатор периодического начисления |
 | client_id | UUID | FK, NOT NULL | Клиент |
 | product_id | UUID | FK, NOT NULL | Банковский продукт |
-| operation_type | operation_type_enum | NOT NULL | Тип операции |
-| periodicity | periodicity_enum | NOT NULL | Периодичность: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY` |
+| operation_type | VARCHAR(30) | NOT NULL, CHECK (operation_type IN ('TRANSFER', 'PAYMENT', 'CASH_WITHDRAWAL', 'CARD_SERVICE', 'FX_TRANSFER')) | Тип операции |
+| periodicity | VARCHAR(20) | NOT NULL, CHECK (periodicity IN ('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY')) | Периодичность |
 | next_charge_date | DATE | NOT NULL | Дата следующего начисления |
-| status | periodic_charge_status_enum | NOT NULL | Статус: `ACTIVE`, `PAUSED`, `CLOSED` |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('ACTIVE', 'PAUSED', 'CLOSED')) | Статус периодического начисления |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания |
 
 #### Сущность `charge`
@@ -123,16 +123,16 @@
 | Атрибут | Тип данных | Ограничения | Описание |
 |---|---|---|---|
 | charge_id | UUID | PK | Уникальный идентификатор начисления |
-| billing_event_id | UUID | FK, UNIQUE, NULL | Исходное биллинговое событие |
-| periodic_charge_id | UUID | FK, NULL | Периодическое начисление |
+| billing_event_id | UUID | FK, UNIQUE | Исходное биллинговое событие |
+| periodic_charge_id | UUID | FK | Периодическое начисление |
 | tariff_id | UUID | FK, NOT NULL | Использованный тариф |
-| benefit_id | UUID | FK, NULL | Применённая льгота |
-| exchange_rate_id | UUID | FK, NULL | Использованный валютный курс |
-| amount | NUMERIC(15,2) | NOT NULL, CHECK >= 0 | Итоговая сумма начисления |
-| currency | VARCHAR(3) | NOT NULL | Код валюты по ISO 4217 |
-| discount_amount | NUMERIC(15,2) | NOT NULL, DEFAULT 0, CHECK >= 0 | Сумма применённой скидки |
+| benefit_id | UUID | FK | Применённая льгота |
+| exchange_rate_id | UUID | FK | Использованный валютный курс |
+| amount | NUMERIC(15,2) | NOT NULL, CHECK (amount >= 0) | Итоговая сумма начисления |
+| currency | VARCHAR(3) | NOT NULL | Код валюты по стандарту ISO 4217 |
+| discount_amount | NUMERIC(15,2) | NOT NULL, DEFAULT 0, CHECK (discount_amount >= 0) | Сумма применённой скидки |
 | calculated_at | TIMESTAMPTZ | NOT NULL | Дата и время расчёта |
-| status | charge_status_enum | NOT NULL | Статус: `CALCULATED`, `PAID`, `FAILED`, `REFUNDED` |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('CALCULATED', 'PAID', 'FAILED', 'REFUNDED')) | Статус начисления |
 
 Источником начисления является либо `billing_event`, либо `periodic_charge`. Одновременное заполнение обоих идентификаторов запрещено ограничением целостности.
 
@@ -143,13 +143,13 @@
 | debit_order_id | UUID | PK | Уникальный идентификатор распоряжения |
 | charge_id | UUID | FK, NOT NULL, UNIQUE | Начисление |
 | account_id | UUID | FK, NOT NULL | Счёт списания |
-| amount | NUMERIC(15,2) | NOT NULL, CHECK > 0 | Сумма списания |
-| currency | VARCHAR(3) | NOT NULL | Код валюты по ISO 4217 |
+| amount | NUMERIC(15,2) | NOT NULL, CHECK (amount > 0) | Сумма списания |
+| currency | VARCHAR(3) | NOT NULL | Код валюты по стандарту ISO 4217 |
 | purpose | VARCHAR(255) | NOT NULL | Назначение списания |
-| status | debit_order_status_enum | NOT NULL | Статус: `CREATED`, `PROCESSING`, `PAID`, `FAILED` |
-| attempt_count | INTEGER | NOT NULL, DEFAULT 0, CHECK >= 0 | Количество попыток списания |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('CREATED', 'PROCESSING', 'PAID', 'FAILED')) | Статус распоряжения |
+| attempt_count | INTEGER | NOT NULL, DEFAULT 0, CHECK (attempt_count >= 0) | Количество попыток списания |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания |
-| updated_at | TIMESTAMPTZ | NULL, CHECK >= created_at | Дата последнего изменения |
+| updated_at | TIMESTAMPTZ | CHECK (updated_at >= created_at) | Дата последнего изменения |
 
 #### Сущность `adjustment`
 
@@ -157,7 +157,7 @@
 |---|---|---|---|
 | adjustment_id | UUID | PK | Уникальный идентификатор корректировки |
 | charge_id | UUID | FK, NOT NULL | Начисление |
-| amount | NUMERIC(15,2) | NOT NULL, CHECK <> 0 | Сумма корректировки |
+| amount | NUMERIC(15,2) | NOT NULL, CHECK (amount <> 0) | Сумма корректировки |
 | reason | TEXT | NOT NULL | Причина корректировки |
 | created_by | VARCHAR(100) | NOT NULL | Инициатор корректировки |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания |
@@ -168,16 +168,16 @@
 |---|---|---|---|
 | refund_id | UUID | PK | Уникальный идентификатор возврата |
 | charge_id | UUID | FK, NOT NULL | Начисление |
-| amount | NUMERIC(15,2) | NOT NULL, CHECK > 0 | Сумма возврата |
+| amount | NUMERIC(15,2) | NOT NULL, CHECK (amount > 0) | Сумма возврата |
 | reason | TEXT | NOT NULL | Причина возврата |
-| status | refund_status_enum | NOT NULL | Статус: `CREATED`, `PROCESSING`, `COMPLETED`, `FAILED` |
+| status | VARCHAR(20) | NOT NULL, CHECK (status IN ('CREATED', 'PROCESSING', 'COMPLETED', 'FAILED')) | Статус возврата |
 | created_at | TIMESTAMPTZ | NOT NULL | Дата и время создания |
 
 ---
 
 ## DDL-скрипт PostgreSQL
 
-Скрипт создания схемы, таблиц, ограничений, типов и индексов:
+Скрипт создания схемы, таблиц, ограничений и индексов:
 
 [postgresql_ddl.sql](postgresql_ddl.sql)
 
