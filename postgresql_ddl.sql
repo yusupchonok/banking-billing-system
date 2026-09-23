@@ -87,6 +87,93 @@ CREATE TABLE billing.billing_event (
         CHECK (status IN ('NEW', 'PROCESSED', 'FAILED'))
 );
 
+
+CREATE TABLE billing.billing_operation (
+    operation_id VARCHAR(64) PRIMARY KEY,
+    external_operation_id VARCHAR(64) NOT NULL UNIQUE,
+    idempotency_key VARCHAR(64) NOT NULL UNIQUE,
+    billing_event_id UUID NOT NULL UNIQUE,
+    client_id UUID NOT NULL,
+    account_id UUID NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    billing_decision VARCHAR(20) NOT NULL,
+    decision_reason VARCHAR(30),
+    commission_amount NUMERIC(15,2) NOT NULL,
+    commission_currency VARCHAR(3) NOT NULL,
+    charge_status VARCHAR(20) NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT fk_billing_operation_event
+        FOREIGN KEY (billing_event_id)
+        REFERENCES billing.billing_event(event_id),
+
+    CONSTRAINT fk_billing_operation_client
+        FOREIGN KEY (client_id)
+        REFERENCES billing.client(client_id),
+
+    CONSTRAINT fk_billing_operation_account
+        FOREIGN KEY (account_id)
+        REFERENCES billing.account(account_id),
+
+    CONSTRAINT chk_billing_operation_status
+        CHECK (
+            status IN (
+                'CALCULATED',
+                'REJECTED',
+                'COMPLETED',
+                'CANCELLED',
+                'ERROR'
+            )
+        ),
+
+    CONSTRAINT chk_billing_operation_decision
+        CHECK (billing_decision IN ('APPROVED', 'REJECTED')),
+
+    CONSTRAINT chk_billing_operation_reason
+        CHECK (
+            decision_reason IS NULL
+            OR decision_reason IN (
+                'INSUFFICIENT_FUNDS',
+                'ACCOUNT_BLOCKED',
+                'ACCOUNT_CLOSED',
+                'TARIFF_NOT_FOUND'
+            )
+        ),
+
+    CONSTRAINT chk_billing_operation_decision_reason
+        CHECK (
+            (billing_decision = 'APPROVED' AND decision_reason IS NULL)
+            OR
+            (billing_decision = 'REJECTED' AND decision_reason IS NOT NULL)
+        ),
+
+    CONSTRAINT chk_billing_operation_commission_amount
+        CHECK (commission_amount >= 0),
+
+    CONSTRAINT chk_billing_operation_commission_currency
+        CHECK (commission_currency ~ '^[A-Z]{3}$'),
+
+    CONSTRAINT chk_billing_operation_charge_status
+        CHECK (
+            charge_status IN (
+                'NO_CHARGE',
+                'RESERVED',
+                'PAID',
+                'NOT_CHARGED',
+                'PAYMENT_ERROR',
+                'REFUNDED'
+            )
+        ),
+
+    CONSTRAINT chk_billing_operation_version
+        CHECK (version > 0),
+
+    CONSTRAINT chk_billing_operation_dates
+        CHECK (updated_at >= created_at)
+);
+
 CREATE TABLE billing.tariff (
     tariff_id UUID PRIMARY KEY,
     product_id UUID NOT NULL,
@@ -490,6 +577,69 @@ CREATE TABLE billing.refund (
         )
 );
 
+
+
+CREATE TABLE billing.outbox_event (
+    event_id UUID PRIMARY KEY,
+    charge_id UUID NOT NULL,
+    client_id UUID NOT NULL,
+    refund_id UUID,
+    event_type VARCHAR(30) NOT NULL,
+    amount NUMERIC(15,2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    correlation_id VARCHAR(100) NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'NEW',
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL,
+    published_at TIMESTAMPTZ,
+
+    CONSTRAINT fk_outbox_event_charge
+        FOREIGN KEY (charge_id)
+        REFERENCES billing.charge(charge_id),
+
+    CONSTRAINT fk_outbox_event_client
+        FOREIGN KEY (client_id)
+        REFERENCES billing.client(client_id),
+
+    CONSTRAINT fk_outbox_event_refund
+        FOREIGN KEY (refund_id)
+        REFERENCES billing.refund(refund_id),
+
+    CONSTRAINT chk_outbox_event_type
+        CHECK (
+            event_type IN (
+                'COMMISSION_PAID',
+                'COMMISSION_FAILED',
+                'COMMISSION_REFUNDED'
+            )
+        ),
+
+    CONSTRAINT chk_outbox_event_amount
+        CHECK (amount >= 0),
+
+    CONSTRAINT chk_outbox_event_currency
+        CHECK (currency ~ '^[A-Z]{3}$'),
+
+    CONSTRAINT chk_outbox_event_status
+        CHECK (
+            status IN (
+                'NEW',
+                'PUBLISHED',
+                'FAILED'
+            )
+        ),
+
+    CONSTRAINT chk_outbox_event_attempt_count
+        CHECK (attempt_count >= 0),
+
+    CONSTRAINT chk_outbox_event_published_at
+        CHECK (
+            published_at IS NULL
+            OR published_at >= created_at
+        )
+);
+
 CREATE INDEX idx_account_client_id
     ON billing.account(client_id);
 
@@ -498,6 +648,15 @@ CREATE INDEX idx_billing_event_account_id
 
 CREATE INDEX idx_billing_event_product_id
     ON billing.billing_event(product_id);
+
+CREATE INDEX idx_billing_operation_client_id
+    ON billing.billing_operation(client_id);
+
+CREATE INDEX idx_billing_operation_account_id
+    ON billing.billing_operation(account_id);
+
+CREATE INDEX idx_billing_operation_status
+    ON billing.billing_operation(status);
 
 CREATE INDEX idx_tariff_product_id
     ON billing.tariff(product_id);
@@ -540,3 +699,15 @@ CREATE INDEX idx_adjustment_charge_id
 
 CREATE INDEX idx_refund_charge_id
     ON billing.refund(charge_id);
+
+CREATE INDEX idx_outbox_event_status_created_at
+    ON billing.outbox_event(status, created_at);
+
+CREATE INDEX idx_outbox_event_charge_id
+    ON billing.outbox_event(charge_id);
+
+CREATE INDEX idx_outbox_event_client_id
+    ON billing.outbox_event(client_id);
+
+CREATE INDEX idx_outbox_event_refund_id
+    ON billing.outbox_event(refund_id);

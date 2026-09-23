@@ -25,6 +25,7 @@
         "externalOperationId",
         "clientId",
         "accountId",
+        "productId",
         "operationType",
         "operationAmount",
         "operationCurrency",
@@ -39,19 +40,28 @@
         "clientId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 64
+          "maxLength": 64,
+          "format": "uuid"
         },
         "accountId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 64
+          "maxLength": 64,
+          "format": "uuid"
+        },
+        "productId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "format": "uuid"
         },
         "operationType": {
           "type": "string",
           "enum": [
             "TRANSFER",
             "PAYMENT",
-            "CASH_WITHDRAWAL"
+            "CASH_WITHDRAWAL",
+            "FX_TRANSFER"
           ]
         },
         "operationAmount": {
@@ -83,8 +93,10 @@
           "type": "string",
           "enum": [
             "COMPLETED",
-            "FAILED"
-          ]
+            "FAILED",
+            "CANCELLED"
+          ],
+          "description": "Итог операции. CANCELLED используется, если пользователь отказался от перевода после предварительного расчёта комиссии."
         }
       }
     },
@@ -157,7 +169,8 @@
             "RESERVED",
             "PAID",
             "NOT_CHARGED",
-            "PAYMENT_ERROR"
+            "PAYMENT_ERROR",
+            "REFUNDED"
           ]
         },
         "_links": {

@@ -1,0 +1,109 @@
+asyncapi: 3.1.0
+info:
+  title: Banking Billing System Notification Events API
+  version: 1.0.0
+  description: Асинхронный контракт передачи событий из Banking Billing System в систему уведомлений через Kafka.
+defaultContentType: application/json
+servers:
+  kafka:
+    host: kafka:9092
+    protocol: kafka
+    description: Kafka broker
+channels:
+  billingNotificationEvents:
+    address: billing.notification-events
+    description: События о результате обработки комиссии
+    messages:
+      BillingNotificationEvent:
+        $ref: '#/components/messages/BillingNotificationEvent'
+operations:
+  sendBillingNotificationEvent:
+    action: send
+    summary: Публикация события о результате обработки комиссии
+    channel:
+      $ref: '#/channels/billingNotificationEvents'
+    messages:
+    - $ref: '#/channels/billingNotificationEvents/messages/BillingNotificationEvent'
+components:
+  messages:
+    BillingNotificationEvent:
+      name: BillingNotificationEvent
+      title: Событие для системы уведомлений
+      summary: Содержит результат обработки комиссии
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlationId
+      payload:
+        $ref: '#/components/schemas/BillingNotificationEventPayload'
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: В качестве ключа Kafka-сообщения используется chargeId
+          bindingVersion: 0.5.0
+      examples:
+      - name: commissionPaid
+        summary: Комиссия успешно списана
+        payload:
+          eventId: 88888888-8888-8888-8888-888888888881
+          eventType: COMMISSION_PAID
+          chargeId: 77777777-7777-7777-7777-777777777771
+          clientId: 11111111-1111-1111-1111-111111111111
+          amount: 150.0
+          currency: RUB
+          occurredAt: '2026-08-15T10:00:04+03:00'
+          correlationId: transfer-10001
+  schemas:
+    BillingNotificationEventPayload:
+      type: object
+      additionalProperties: false
+      required:
+      - eventId
+      - eventType
+      - chargeId
+      - clientId
+      - amount
+      - currency
+      - occurredAt
+      - correlationId
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор события
+        eventType:
+          type: string
+          enum:
+          - COMMISSION_PAID
+          - COMMISSION_FAILED
+          - COMMISSION_REFUNDED
+          description: Тип события
+        chargeId:
+          type: string
+          format: uuid
+          description: Идентификатор начисления
+        clientId:
+          type: string
+          format: uuid
+          description: Идентификатор клиента
+        amount:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          description: Сумма комиссии или возврата
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          pattern: ^[A-Z]{3}$
+          description: Код валюты по стандарту ISO 4217
+        occurredAt:
+          type: string
+          format: date-time
+          description: Дата и время возникновения события
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Идентификатор для сквозной трассировки

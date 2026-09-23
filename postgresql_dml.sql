@@ -248,6 +248,76 @@ INSERT INTO billing.billing_event (
     '2026-08-15 13:00:01+03'
 );
 
+
+INSERT INTO billing.billing_operation (
+    operation_id,
+    external_operation_id,
+    idempotency_key,
+    billing_event_id,
+    client_id,
+    account_id,
+    status,
+    billing_decision,
+    decision_reason,
+    commission_amount,
+    commission_currency,
+    charge_status,
+    version,
+    created_at,
+    updated_at
+) VALUES
+(
+    'billing-70001',
+    'transfer-10001',
+    'billing-12345',
+    'f1111111-1111-1111-1111-111111111111',
+    '11111111-1111-1111-1111-111111111111',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+    'COMPLETED',
+    'APPROVED',
+    NULL,
+    150.00,
+    'RUB',
+    'PAID',
+    2,
+    '2026-08-15 10:00:01+03',
+    '2026-08-15 10:00:04+03'
+),
+(
+    'billing-70002',
+    'transfer-10002',
+    'billing-22345',
+    'f2222222-2222-2222-2222-222222222222',
+    '22222222-2222-2222-2222-222222222222',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
+    'COMPLETED',
+    'APPROVED',
+    NULL,
+    40.00,
+    'RUB',
+    'PAID',
+    2,
+    '2026-08-15 11:00:01+03',
+    '2026-08-15 11:00:04+03'
+),
+(
+    'billing-70003',
+    'transfer-10003',
+    'billing-32345',
+    'f3333333-3333-3333-3333-333333333333',
+    '11111111-1111-1111-1111-111111111111',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+    'COMPLETED',
+    'APPROVED',
+    NULL,
+    90.13,
+    'RUB',
+    'PAID',
+    2,
+    '2026-08-15 12:00:01+03',
+    '2026-08-15 12:00:04+03'
+);
+
 INSERT INTO billing.periodic_charge (
     periodic_charge_id,
     client_id,
@@ -428,4 +498,191 @@ INSERT INTO billing.refund (
     'Возврат комиссии по обращению клиента',
     'COMPLETED',
     '2026-08-17 14:00:00+03'
+);
+
+UPDATE billing.charge
+SET status = 'REFUNDED'
+WHERE charge_id = '77777777-7777-7777-7777-777777777772';
+
+
+UPDATE billing.billing_operation
+SET
+    charge_status = 'REFUNDED',
+    version = version + 1,
+    updated_at = '2026-08-17 14:00:00+03'
+WHERE operation_id = 'billing-70002';
+
+
+INSERT INTO billing.billing_event (
+    event_id,
+    account_id,
+    product_id,
+    operation_type,
+    operation_amount,
+    operation_currency,
+    operation_at,
+    source_system,
+    status,
+    created_at
+) VALUES
+(
+    'f5555555-5555-5555-5555-555555555555',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
+    'TRANSFER',
+    7500.00,
+    'RUB',
+    '2026-08-15 14:00:00+03',
+    'PAYMENT_PROCESSING',
+    'PROCESSED',
+    '2026-08-15 14:00:01+03'
+);
+
+
+INSERT INTO billing.billing_operation (
+    operation_id,
+    external_operation_id,
+    idempotency_key,
+    billing_event_id,
+    client_id,
+    account_id,
+    status,
+    billing_decision,
+    decision_reason,
+    commission_amount,
+    commission_currency,
+    charge_status,
+    version,
+    created_at,
+    updated_at
+) VALUES
+(
+    'billing-70005',
+    'transfer-10005',
+    'billing-52345',
+    'f5555555-5555-5555-5555-555555555555',
+    '11111111-1111-1111-1111-111111111111',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+    'ERROR',
+    'APPROVED',
+    NULL,
+    75.00,
+    'RUB',
+    'PAYMENT_ERROR',
+    2,
+    '2026-08-15 14:00:01+03',
+    '2026-08-15 14:00:06+03'
+);
+
+INSERT INTO billing.charge (
+    charge_id,
+    billing_event_id,
+    periodic_charge_id,
+    tariff_id,
+    benefit_id,
+    exchange_rate_id,
+    amount,
+    currency,
+    discount_amount,
+    calculated_at,
+    status
+) VALUES
+(
+    '77777777-7777-7777-7777-777777777775',
+    'f5555555-5555-5555-5555-555555555555',
+    NULL,
+    'cccccccc-cccc-cccc-cccc-ccccccccccc1',
+    NULL,
+    NULL,
+    75.00,
+    'RUB',
+    0.00,
+    '2026-08-15 14:00:02+03',
+    'FAILED'
+);
+
+INSERT INTO billing.debit_order (
+    debit_order_id,
+    charge_id,
+    account_id,
+    amount,
+    currency,
+    purpose,
+    status,
+    attempt_count,
+    created_at,
+    updated_at
+) VALUES
+(
+    '66666666-6666-6666-6666-666666666665',
+    '77777777-7777-7777-7777-777777777775',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+    75.00,
+    'RUB',
+    'Комиссия за перевод',
+    'FAILED',
+    3,
+    '2026-08-15 14:00:03+03',
+    '2026-08-15 14:00:06+03'
+);
+
+INSERT INTO billing.outbox_event (
+    event_id,
+    charge_id,
+    client_id,
+    refund_id,
+    event_type,
+    amount,
+    currency,
+    correlation_id,
+    occurred_at,
+    status,
+    attempt_count,
+    created_at,
+    published_at
+) VALUES
+(
+    '88888888-8888-8888-8888-888888888881',
+    '77777777-7777-7777-7777-777777777771',
+    '11111111-1111-1111-1111-111111111111',
+    NULL,
+    'COMMISSION_PAID',
+    150.00,
+    'RUB',
+    'transfer-10001',
+    '2026-08-15 10:00:04+03',
+    'PUBLISHED',
+    1,
+    '2026-08-15 10:00:04+03',
+    '2026-08-15 10:00:05+03'
+),
+(
+    '88888888-8888-8888-8888-888888888882',
+    '77777777-7777-7777-7777-777777777772',
+    '22222222-2222-2222-2222-222222222222',
+    '44444444-4444-4444-4444-444444444441',
+    'COMMISSION_REFUNDED',
+    40.00,
+    'RUB',
+    'transfer-10002',
+    '2026-08-17 14:00:00+03',
+    'PUBLISHED',
+    1,
+    '2026-08-17 14:00:00+03',
+    '2026-08-17 14:00:01+03'
+),
+(
+    '88888888-8888-8888-8888-888888888883',
+    '77777777-7777-7777-7777-777777777775',
+    '11111111-1111-1111-1111-111111111111',
+    NULL,
+    'COMMISSION_FAILED',
+    75.00,
+    'RUB',
+    'transfer-10005',
+    '2026-08-15 14:00:06+03',
+    'NEW',
+    0,
+    '2026-08-15 14:00:06+03',
+    NULL
 );

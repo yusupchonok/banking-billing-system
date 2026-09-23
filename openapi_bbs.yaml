@@ -1,31 +1,27 @@
 openapi: 3.0.3
-
 info:
   title: Banking Billing System API
   version: 1.0.0
   description: API для расчёта комиссии и работы с биллинговыми операциями.
-
 servers:
-  - url: https://api.example.com
-
+- url: https://api.example.com
 paths:
   /api/v1/billing-operations/{operationId}:
     parameters:
-      - name: operationId
-        in: path
-        required: true
-        description: Идентификатор биллинговой операции
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 64
-        example: billing-70001
-
+    - name: operationId
+      in: path
+      required: true
+      description: Идентификатор биллинговой операции
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+      example: billing-70001
     get:
       summary: Получить биллинговую операцию
       security:
-        - OAuth2:
-            - billing.read
+      - OAuth2:
+        - billing.read
       responses:
         '200':
           description: Операция найдена
@@ -49,51 +45,50 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/billing-operations:
     get:
       summary: Получить список биллинговых операций
       security:
-        - OAuth2:
-            - billing.read
+      - OAuth2:
+        - billing.read
       parameters:
-        - name: clientId
-          in: query
-          required: false
-          description: Фильтр по клиенту
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-        - name: status
-          in: query
-          required: false
-          description: Фильтр по статусу
-          schema:
-            type: string
-            enum:
-              - CALCULATED
-              - REJECTED
-              - COMPLETED
-              - CANCELLED
-              - ERROR
-        - name: page
-          in: query
-          required: false
-          description: Номер страницы
-          schema:
-            type: integer
-            minimum: 0
-            default: 0
-        - name: size
-          in: query
-          required: false
-          description: Количество элементов на странице
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+      - name: clientId
+        in: query
+        required: false
+        description: Фильтр по клиенту
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: status
+        in: query
+        required: false
+        description: Фильтр по статусу
+        schema:
+          type: string
+          enum:
+          - CALCULATED
+          - REJECTED
+          - COMPLETED
+          - CANCELLED
+          - ERROR
+      - name: page
+        in: query
+        required: false
+        description: Номер страницы
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        description: Количество элементов на странице
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
         '200':
           description: Список биллинговых операций
@@ -111,23 +106,22 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-
     post:
       summary: Рассчитать комиссию
       description: Рассчитывает комиссию и проверяет возможность её списания до выполнения денежной операции.
       security:
-        - OAuth2:
-            - billing.write
+      - OAuth2:
+        - billing.write
       parameters:
-        - name: Idempotency-Key
-          in: header
-          required: true
-          description: Ключ защиты от повторного выполнения POST-запроса
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 64
-          example: billing-12345
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: Ключ защиты от повторного выполнения POST-запроса
+        schema:
+          type: string
+          minLength: 8
+          maxLength: 64
+        example: billing-12345
       requestBody:
         required: true
         content:
@@ -136,10 +130,11 @@ paths:
               $ref: '#/components/schemas/BillingOperationCreateRequest'
             example:
               externalOperationId: transfer-10001
-              clientId: client-101
-              accountId: account-501
+              clientId: 11111111-1111-1111-1111-111111111111
+              accountId: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1
+              productId: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1
               operationType: TRANSFER
-              operationAmount: 15000.00
+              operationAmount: 15000.0
               operationCurrency: RUB
               operationDate: '2026-08-17T10:00:00Z'
       responses:
@@ -175,23 +170,22 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
-
     patch:
-      summary: Зафиксировать результат денежной операции
-      description: После выполнения перевода фиксирует его результат и завершает работу с комиссией.
+      summary: Зафиксировать результат или отмену денежной операции
+      description: Фиксирует результат денежного перевода либо отказ пользователя от операции и завершает работу с комиссией.
       security:
-        - OAuth2:
-            - billing.write
+      - OAuth2:
+        - billing.write
       parameters:
-        - name: If-Match
-          in: header
-          required: true
-          description: ETag текущей версии ресурса
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-          example: '"1"'
+      - name: If-Match
+        in: header
+        required: true
+        description: ETag текущей версии ресурса
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+        example: '"1"'
       requestBody:
         required: true
         content:
@@ -237,7 +231,6 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
-
 components:
   securitySchemes:
     OAuth2:
@@ -248,19 +241,19 @@ components:
           scopes:
             billing.read: Чтение биллинговых операций
             billing.write: Создание и изменение биллинговых операций
-
   schemas:
     BillingOperationCreateRequest:
       type: object
       additionalProperties: false
       required:
-        - externalOperationId
-        - clientId
-        - accountId
-        - operationType
-        - operationAmount
-        - operationCurrency
-        - operationDate
+      - externalOperationId
+      - clientId
+      - accountId
+      - productId
+      - operationType
+      - operationAmount
+      - operationCurrency
+      - operationDate
       properties:
         externalOperationId:
           type: string
@@ -271,18 +264,27 @@ components:
           type: string
           minLength: 1
           maxLength: 64
-          example: client-101
+          example: 11111111-1111-1111-1111-111111111111
+          format: uuid
         accountId:
           type: string
           minLength: 1
           maxLength: 64
-          example: account-501
+          example: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1
+          format: uuid
+        productId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1
+          format: uuid
         operationType:
           type: string
           enum:
-            - TRANSFER
-            - PAYMENT
-            - CASH_WITHDRAWAL
+          - TRANSFER
+          - PAYMENT
+          - CASH_WITHDRAWAL
+          - FX_TRANSFER
           example: TRANSFER
         operationAmount:
           type: number
@@ -290,43 +292,44 @@ components:
           minimum: 0.01
           maximum: 999999999999.99
           multipleOf: 0.01
-          example: 15000.00
+          example: 15000.0
         operationCurrency:
           type: string
           minLength: 3
           maxLength: 3
-          pattern: '^[A-Z]{3}$'
+          pattern: ^[A-Z]{3}$
           example: RUB
         operationDate:
           type: string
           format: date-time
           example: '2026-08-17T10:00:00Z'
-
     BillingOperationPatchRequest:
       type: object
       additionalProperties: false
       required:
-        - transferStatus
+      - transferStatus
       properties:
         transferStatus:
           type: string
           enum:
-            - COMPLETED
-            - FAILED
+          - COMPLETED
+          - FAILED
+          - CANCELLED
+          description: Итог операции. CANCELLED используется, если пользователь отказался от перевода после предварительного
+            расчёта комиссии.
           example: COMPLETED
-
     BillingOperationResponse:
       type: object
       additionalProperties: false
       required:
-        - operationId
-        - externalOperationId
-        - status
-        - billingDecision
-        - commissionAmount
-        - commissionCurrency
-        - chargeStatus
-        - _links
+      - operationId
+      - externalOperationId
+      - status
+      - billingDecision
+      - commissionAmount
+      - commissionCurrency
+      - chargeStatus
+      - _links
       properties:
         operationId:
           type: string
@@ -341,71 +344,70 @@ components:
         status:
           type: string
           enum:
-            - CALCULATED
-            - REJECTED
-            - COMPLETED
-            - CANCELLED
-            - ERROR
+          - CALCULATED
+          - REJECTED
+          - COMPLETED
+          - CANCELLED
+          - ERROR
           example: CALCULATED
         billingDecision:
           type: string
           enum:
-            - APPROVED
-            - REJECTED
+          - APPROVED
+          - REJECTED
           example: APPROVED
         decisionReason:
           type: string
           enum:
-            - INSUFFICIENT_FUNDS
-            - ACCOUNT_BLOCKED
-            - ACCOUNT_CLOSED
-            - TARIFF_NOT_FOUND
+          - INSUFFICIENT_FUNDS
+          - ACCOUNT_BLOCKED
+          - ACCOUNT_CLOSED
+          - TARIFF_NOT_FOUND
         commissionAmount:
           type: number
           format: double
           minimum: 0
           maximum: 999999999999.99
           multipleOf: 0.01
-          example: 150.00
+          example: 150.0
         commissionCurrency:
           type: string
           minLength: 3
           maxLength: 3
-          pattern: '^[A-Z]{3}$'
+          pattern: ^[A-Z]{3}$
           example: RUB
         chargeStatus:
           type: string
           enum:
-            - NO_CHARGE
-            - RESERVED
-            - PAID
-            - NOT_CHARGED
-            - PAYMENT_ERROR
+          - NO_CHARGE
+          - RESERVED
+          - PAID
+          - NOT_CHARGED
+          - PAYMENT_ERROR
+          - REFUNDED
           example: RESERVED
         _links:
           $ref: '#/components/schemas/OperationLinks'
-
     OperationLinks:
       type: object
       additionalProperties: false
       required:
-        - self
+      - self
       properties:
         self:
           $ref: '#/components/schemas/Link'
         update:
           $ref: '#/components/schemas/Link'
-
     BillingOperationListResponse:
       type: object
       additionalProperties: false
       required:
-        - items
-        - page
-        - size
-        - totalElements
-        - totalPages
-        - _links
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      - _links
       properties:
         items:
           type: array
@@ -428,12 +430,11 @@ components:
           minimum: 0
         _links:
           $ref: '#/components/schemas/CollectionLinks'
-
     CollectionLinks:
       type: object
       additionalProperties: false
       required:
-        - self
+      - self
       properties:
         self:
           $ref: '#/components/schemas/Link'
@@ -441,13 +442,12 @@ components:
           $ref: '#/components/schemas/Link'
         prev:
           $ref: '#/components/schemas/Link'
-
     Link:
       type: object
       additionalProperties: false
       required:
-        - href
-        - method
+      - href
+      - method
       properties:
         href:
           type: string
@@ -457,17 +457,16 @@ components:
         method:
           type: string
           enum:
-            - GET
-            - PATCH
-            - POST
+          - GET
+          - PATCH
+          - POST
           example: GET
-
     ErrorResponse:
       type: object
       additionalProperties: false
       required:
-        - code
-        - message
+      - code
+      - message
       properties:
         code:
           type: string
@@ -479,7 +478,6 @@ components:
           minLength: 1
           maxLength: 500
           example: Некорректные данные запроса
-
   responses:
     BadRequest:
       description: Некорректный запрос
@@ -487,63 +485,54 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     Unauthorized:
       description: Не передан или недействителен токен доступа
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     Forbidden:
       description: Недостаточно прав для выполнения операции
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     NotFound:
       description: Клиент, счёт или биллинговая операция не найдены
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     Conflict:
       description: Конфликт при повторном использовании Idempotency-Key
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     Unprocessable:
       description: Операция не может быть выполнена по бизнес-правилам
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     PreconditionFailed:
       description: If-Match не соответствует текущему ETag
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     Locked:
       description: Ресурс заблокирован для изменения
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     PreconditionRequired:
       description: Не передан обязательный If-Match
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     TooManyRequests:
       description: Превышен лимит запросов
       headers:
@@ -557,14 +546,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     InternalError:
       description: Внутренняя ошибка сервиса
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     ServiceUnavailable:
       description: Сервис временно недоступен
       headers:
@@ -578,7 +565,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-
     GatewayTimeout:
       description: Не получен ответ зависимого сервиса в установленное время
       content:
